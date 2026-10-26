@@ -47,7 +47,31 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           New-Item -ItemType Directory -Force -Path _sdk | Out-Null
-          gh release download sdk --pattern "Grounded2Minimal-SDK.zip" --dir _sdk
+          $defaultRepo = "${{ github.repository }}"
+          $fallbackRepo = "x0reaxeax/Grounded2Minimal"
+          $reposToTry = @($defaultRepo)
+
+          if ($defaultRepo -ne $fallbackRepo) {
+            $reposToTry += $fallbackRepo
+          }
+
+          $downloaded = $false
+
+          foreach ($releaseRepo in $reposToTry) {
+            Write-Host "Attempting to download SDK from release 'sdk' in $releaseRepo..."
+            gh release download sdk --repo $releaseRepo --pattern "Grounded2Minimal-SDK.zip" --dir _sdk
+
+            if ($LASTEXITCODE -eq 0) {
+              $downloaded = $true
+              break
+            }
+
+            $LASTEXITCODE = 0
+          }
+
+          if (-not $downloaded) {
+            throw "Failed to download Grounded2Minimal-SDK.zip from release 'sdk' in repositories: $($reposToTry -join ', ')"
+          }
 
       - name: Extract SDK into project directory
         shell: pwsh
